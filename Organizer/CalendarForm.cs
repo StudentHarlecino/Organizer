@@ -133,7 +133,15 @@ namespace Organizer
             };
             userNameLabel.Click += (s, e) =>
             {
-                MessageBox.Show("Здесь можно открыть окно редактирования профиля или регистрацию.", "Редактировать профиль");
+                var user = dbContext.UserProfiles.FirstOrDefault();
+                if (user != null)
+                {
+                    MessageBox.Show("Здесь можно открыть окно редактирования профиля.", "Редактировать профиль");
+                }
+                else
+                {
+                    MessageBox.Show("Здесь можно открыть окно регистрации.", "Регистрация");
+                }
             };
 
             // Добавляем имя пользователя в navPanel с правильным расположением
@@ -188,10 +196,83 @@ namespace Organizer
             this.Controls.Add(mainPanel);
         }
 
+        private Image GetDefaultAvatar()
+        {
+            // Создаем простую круглую аватарку с инициалами
+            var bmp = new Bitmap(40, 40);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                // Заливаем круг фоном
+                g.FillEllipse(Brushes.LightGray, 0, 0, 39, 39);
+
+                // Если пользователь есть, рисуем инициалы
+                var user = dbContext.UserProfiles.FirstOrDefault();
+                if (user != null)
+                {
+                    string initials = $"{user.LastName?[0]}{user.FirstName?[0]}".ToUpper();
+                    using (var font = new Font("Segoe UI", 12, FontStyle.Bold))
+                    {
+                        var size = g.MeasureString(initials, font);
+                        g.DrawString(initials, font, Brushes.DarkGreen,
+                            (bmp.Width - size.Width) / 2,
+                            (bmp.Height - size.Height) / 2);
+                    }
+                }
+            }
+            return bmp;
+        }
         private void LoadUserName()
         {
             var user = dbContext.UserProfiles.FirstOrDefault();
-            userNameLabel.Text = user != null ? $"{user.LastName} {user.FirstName}" : "Регистрация";
+
+            // Удаляем старые элементы, если они есть
+            foreach (Control c in userNameLabel.Parent.Controls.OfType<PictureBox>().ToList())
+            {
+                userNameLabel.Parent.Controls.Remove(c);
+            }
+
+            if (user != null)
+            {
+                userNameLabel.Text = $"{user.LastName} {user.FirstName}";
+
+                // Добавляем аватарку
+                var avatarBox = new PictureBox
+                {
+                    Image = GetDefaultAvatar(),
+                    Size = new Size(40, 40),
+                    SizeMode = PictureBoxSizeMode.StretchImage,
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    BackColor = Color.White
+                };
+
+                // Позиционируем аватарку справа от имени
+                avatarBox.Location = new Point(
+                    userNameLabel.Parent.Width - avatarBox.Width - 20,
+                    (userNameLabel.Parent.Height - avatarBox.Height) / 2);
+
+                // Сдвигаем метку имени влево
+                userNameLabel.Location = new Point(
+                    avatarBox.Left - userNameLabel.Width - 10,
+                    (userNameLabel.Parent.Height - userNameLabel.Height) / 2);
+
+                avatarBox.Click += (s, e) =>
+                {
+                    MessageBox.Show("Здесь можно открыть окно редактирования профиля или смену аватарки.", "Редактировать профиль");
+                };
+
+                userNameLabel.Parent.Controls.Add(avatarBox);
+            }
+            else
+            {
+                userNameLabel.Text = "Регистрация";
+                userNameLabel.Location = new Point(
+                    userNameLabel.Parent.Width - userNameLabel.Width - 20,
+                    (userNameLabel.Parent.Height - userNameLabel.Height) / 2);
+            }
         }
 
         private string GetWeekdayShortName(int index)
