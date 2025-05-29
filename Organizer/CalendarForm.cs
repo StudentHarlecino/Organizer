@@ -1,4 +1,4 @@
-﻿using Organizer.Models;
+﻿﻿using Organizer.Models;
 using System;
 using System.Drawing;
 using System.Linq;
@@ -11,7 +11,11 @@ namespace Organizer
         private DateTime currentDate;
         private TableLayoutPanel calendarTable;
         private Label monthLabel;
+        private Label userNameLabel;
         private TeacherOrganizerContext dbContext;
+        private Panel selectedDayPanel = null;
+        private Button prevMonthButton;
+        private Button nextMonthButton;
 
         public CalendarForm()
         {
@@ -19,6 +23,13 @@ namespace Organizer
             InitializeDatabase();
             InitializeCalendarComponents();
             currentDate = DateTime.Today;
+            LoadUserName();
+            UpdateCalendar();
+            this.Resize += CalendarForm_Resize;
+        }
+
+        private void CalendarForm_Resize(object sender, EventArgs e)
+        {
             UpdateCalendar();
         }
 
@@ -29,12 +40,12 @@ namespace Organizer
 
         private void InitializeCalendarComponents()
         {
-            // Настройка формы
             this.Text = "Календарь задач";
             this.Size = new Size(900, 650);
+            this.MinimumSize = new Size(700, 500);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.Font = new Font("Segoe UI", 10);
-            this.BackColor = Color.White;
+            this.BackColor = Color.FromArgb(245, 222, 179);
 
             // Главный контейнер
             var mainPanel = new TableLayoutPanel
@@ -42,74 +53,102 @@ namespace Organizer
                 Dock = DockStyle.Fill,
                 RowCount = 3,
                 ColumnCount = 1,
-                Padding = new Padding(10),
-                BackColor = Color.White
+                BackColor = Color.FromArgb(245, 222, 179)
             };
-            mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 60)); // Навигация
-            mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // Заголовки дней недели
+            mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Навигация + имя пользователя
+            mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // Дни недели
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Календарь
 
-            // Панель навигации по месяцам
-            var navigationPanel = new FlowLayoutPanel
+            // 1. Панель навигации
+            var navPanel = new Panel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                AutoSize = true,
-                WrapContents = false,
-                Padding = new Padding(10),
-                BackColor = Color.LightSteelBlue
+                BackColor = Color.FromArgb(139, 69, 19),
+                Padding = new Padding(0, 10, 0, 0)
             };
 
-            var prevMonthButton = new Button
+            // Контейнер для кнопок и месяца
+            var navContainer = new Panel
+            {
+                Size = new Size(400, 50),
+                Location = new Point(10, 10),
+                BackColor = Color.Transparent
+            };
+
+            // Кнопка "Назад"
+            prevMonthButton = new Button
             {
                 Text = "◄",
-                AutoSize = true,
+                Size = new Size(50, 40),
+                Location = new Point(0, 0),
                 Font = new Font("Segoe UI", 12),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.White,
-                Margin = new Padding(5)
+                Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
             prevMonthButton.Click += (s, e) => { currentDate = currentDate.AddMonths(-1); UpdateCalendar(); };
 
+            // Надпись месяца
             monthLabel = new Label
             {
                 TextAlign = ContentAlignment.MiddleCenter,
-                AutoSize = true,
+                Size = new Size(300, 40),
+                Location = new Point(50, 0),
                 Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = Color.DarkSlateBlue,
-                Margin = new Padding(20, 10, 20, 10)
+                ForeColor = Color.FromArgb(255, 215, 0),
+                Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
 
-            var nextMonthButton = new Button
+            // Кнопка "Вперед"
+            nextMonthButton = new Button
             {
                 Text = "►",
-                AutoSize = true,
+                Size = new Size(50, 40),
+                Location = new Point(350, 0),
                 Font = new Font("Segoe UI", 12),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.White,
-                Margin = new Padding(5)
+                Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
             nextMonthButton.Click += (s, e) => { currentDate = currentDate.AddMonths(1); UpdateCalendar(); };
 
-            navigationPanel.Controls.Add(prevMonthButton);
-            navigationPanel.Controls.Add(monthLabel);
-            navigationPanel.Controls.Add(nextMonthButton);
+            navContainer.Controls.Add(prevMonthButton);
+            navContainer.Controls.Add(monthLabel);
+            navContainer.Controls.Add(nextMonthButton);
+            navPanel.Controls.Add(navContainer);
 
-            // Заголовки дней недели
+            // Имя пользователя справа
+            userNameLabel = new Label
+            {
+                Text = "Петров Алексей",
+                AutoSize = true,
+                TextAlign = ContentAlignment.MiddleRight,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(255, 215, 0),
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            userNameLabel.Click += (s, e) =>
+            {
+                MessageBox.Show("Здесь можно открыть окно редактирования профиля или регистрацию.", "Редактировать профиль");
+            };
+
+            // Добавляем имя пользователя в navPanel с правильным расположением
+            navPanel.Controls.Add(userNameLabel);
+            userNameLabel.Location = new Point(navPanel.Width - userNameLabel.Width - 20, 15);
+
+            // 2. Заголовки дней недели
             var weekdaysPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Height = 40,
                 ColumnCount = 7,
-                BackColor = Color.SteelBlue
-
+                BackColor = Color.FromArgb(160, 82, 45)
             };
-
             for (int i = 0; i < 7; i++)
             {
                 weekdaysPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 14.28f));
-
-                var lblDay = new Label()
+                var lblDay = new Label
                 {
                     Text = GetWeekdayShortName(i),
                     TextAlign = ContentAlignment.MiddleCenter,
@@ -120,14 +159,15 @@ namespace Organizer
                 weekdaysPanel.Controls.Add(lblDay, i, 0);
             }
 
-            // Таблица календаря
-            calendarTable = new TableLayoutPanel()
+            // 3. Таблица календаря
+            calendarTable = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 7,
                 RowCount = 6,
-                BackColor = Color.WhiteSmoke,
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.Single
+                BackColor = Color.FromArgb(245, 222, 179),
+                CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
+                Margin = new Padding(5)
             };
             for (int i = 0; i < 7; i++)
             {
@@ -138,12 +178,18 @@ namespace Organizer
                 calendarTable.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66f));
             }
 
-            // Собираем все вместе в главный контейнер
-            mainPanel.Controls.Add(navigationPanel, 0, 0);
+            // Собираем все вместе
+            mainPanel.Controls.Add(navPanel, 0, 0);
             mainPanel.Controls.Add(weekdaysPanel, 0, 1);
             mainPanel.Controls.Add(calendarTable, 0, 2);
 
             this.Controls.Add(mainPanel);
+        }
+
+        private void LoadUserName()
+        {
+            var user = dbContext.UserProfiles.FirstOrDefault();
+            userNameLabel.Text = user != null ? $"{user.LastName} {user.FirstName}" : "Регистрация";
         }
 
         private string GetWeekdayShortName(int index)
@@ -152,94 +198,137 @@ namespace Organizer
             return days[index];
         }
 
+
         private void UpdateCalendar()
         {
             monthLabel.Text = currentDate.ToString("MMMM yyyy").ToUpper();
 
+            // Сохраняем текущий выбранный день
+            DateTime? selectedDate = selectedDayPanel?.Tag as DateTime?;
+
+            calendarTable.SuspendLayout();
             calendarTable.Controls.Clear();
 
             DateTime firstDayOfMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
             int daysInMonth = DateTime.DaysInMonth(currentDate.Year, currentDate.Month);
             int dayOfWeek = (int)firstDayOfMonth.DayOfWeek;
 
-            // Добавляем пустые ячейки перед первым днем месяца
+            // Заполняем пустые ячейки перед первым днем месяца
             for (int i = 0; i < dayOfWeek; i++)
             {
-                var emptyCell = new Panel() { BackColor = Color.Transparent };
-                calendarTable.Controls.Add(emptyCell);
+                var emptyPanel = new Panel
+                {
+                    BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill
+                };
+                calendarTable.Controls.Add(emptyPanel);
             }
 
+            // Заполняем дни месяца
             for (int day = 1; day <= daysInMonth; day++)
             {
-                DateTime dateLocal = new DateTime(currentDate.Year, currentDate.Month, day);
+                DateTime date = new DateTime(currentDate.Year, currentDate.Month, day);
+                var dayPanel = CreateDayPanel(day, date);
 
-                var dayButton = new Button()
+                // Восстанавливаем выделение, если это выбранный день
+                if (selectedDate.HasValue && date.Date == selectedDate.Value.Date)
                 {
-                    Text = day.ToString(),
-                    Dock = DockStyle.Fill,
-                    Margin = new Padding(2),
-                    Tag = dateLocal,
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.White,
-                    Font = new Font("Segoe UI", 10)
-                };
-
-                if (dateLocal.Date == DateTime.Today.Date)
-                {
-                    dayButton.BackColor = Color.LightSkyBlue;
-                    dayButton.Font = new Font(dayButton.Font, (FontStyle.Bold));
+                    dayPanel.BackColor = Color.FromArgb(139, 69, 19);
+                    selectedDayPanel = dayPanel;
                 }
 
-                // Подсчет задач на день (используем UTC границы)
-                var startOfDayUtc = dateLocal.Date.ToUniversalTime();
-                var endOfDayUtc = startOfDayUtc.AddDays(1);
-
-                int tasksCount = dbContext.Tasks.Count(t =>
-                    t.CreatedAt.HasValue &&
-                    t.CreatedAt.Value.ToUniversalTime() >= startOfDayUtc &&
-                    t.CreatedAt.Value.ToUniversalTime() < endOfDayUtc);
-
-                if (tasksCount > 0)
-                {
-                    dayButton.Text += $"\n({tasksCount} задач)";
-                    dayButton.ForeColor = Color.DarkGreen;
-                    dayButton.Font = new Font(dayButton.Font.FontFamily, dayButton.Font.Size - 1);
-                }
-
-                dayButton.Click += DayButton_Click;
-
-                calendarTable.Controls.Add(dayButton);
+                calendarTable.Controls.Add(dayPanel);
             }
+
+            // Заполняем оставшиеся ячейки
+            int totalCells = 42; // 6 строк * 7 столбцов
+            int filledCells = dayOfWeek + daysInMonth;
+            for (int i = filledCells; i < totalCells; i++)
+            {
+                var emptyPanel = new Panel
+                {
+                    BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill
+                };
+                calendarTable.Controls.Add(emptyPanel);
+            }
+
+            calendarTable.ResumeLayout();
         }
 
-        private void DayButton_Click(object sender, EventArgs e)
+        private Panel CreateDayPanel(int day, DateTime date)
         {
-            var button = (Button)sender;
-            DateTime selectedDate = (DateTime)button.Tag;
-
-            foreach (Control ctrl in calendarTable.Controls)
+            var dayPanel = new Panel
             {
-                if (ctrl is Button btn)
+                Dock = DockStyle.Fill,
+                Margin = new Padding(2),
+                Tag = date,
+                Cursor = Cursors.Hand,
+                BackColor = Color.White // Изначально белый цвет
+            };
+
+            // Если это сегодня - голубой фон
+            if (date.Date == DateTime.Today.Date)
+            {
+                dayPanel.BackColor = Color.LightSkyBlue;
+            }
+
+            // Метка с числом
+            var dayLabel = new Label
+            {
+                Text = day.ToString(),
+                Dock = DockStyle.Top,
+                TextAlign = ContentAlignment.MiddleRight,
+                Padding = new Padding(0, 2, 5, 0),
+                Font = new Font("Segoe UI", 10)
+            };
+
+            // Проверяем задачи на этот день
+            var startOfDayUtc = date.Date.ToUniversalTime();
+            var endOfDayUtc = startOfDayUtc.AddDays(1);
+            int tasksCount = dbContext.Tasks.Count(t => t.CreatedAt.HasValue &&
+                t.CreatedAt.Value.ToUniversalTime() >= startOfDayUtc &&
+                t.CreatedAt.Value.ToUniversalTime() < endOfDayUtc);
+
+            if (tasksCount > 0)
+            {
+                var tasksLabel = new Label
                 {
-                    if (btn.Tag is DateTime dt && dt.Date == selectedDate.Date)
-                    {
-                        // Выделяем выбранный день
-                        btn.BackColor = Color.LightSteelBlue;
-                    }
-                    else if (btn.Tag is DateTime dtOther && dtOther.Date == DateTime.Today.Date)
-                    {
-                        // Восстанавливаем цвет для сегодняшнего дня
-                        btn.BackColor = Color.LightSkyBlue;
-                    }
-                    else
-                    {
-                        // Восстанавливаем стандартный цвет
-                        btn.BackColor = Color.White;
-                    }
+                    Text = $"Задач: {tasksCount}",
+                    Dock = DockStyle.Bottom,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    ForeColor = Color.FromArgb(255, 69, 0),
+                    Font = new Font("Segoe UI", 8)
+                };
+                dayPanel.Controls.Add(tasksLabel);
+            }
+
+            dayPanel.Controls.Add(dayLabel);
+            dayPanel.Click += (s, e) => SelectDay(dayPanel, date);
+
+            return dayPanel;
+        }
+
+        private void SelectDay(Panel dayPanel, DateTime date)
+        {
+            // Сбрасываем предыдущий выбор
+            if (selectedDayPanel != null)
+            {
+                if (((DateTime)selectedDayPanel.Tag).Date == DateTime.Today.Date)
+                {
+                    selectedDayPanel.BackColor = Color.LightSkyBlue;
+                }
+                else
+                {
+                    selectedDayPanel.BackColor = Color.White;
                 }
             }
 
-            ShowTasksForDate(selectedDate);
+            // Выделяем текущий день серым цветом
+            dayPanel.BackColor = Color.FromArgb(200, 200, 200); // Серый цвет
+            selectedDayPanel = dayPanel;
+
+            ShowTasksForDate(date);
         }
 
         private void ShowTasksForDate(DateTime date)
