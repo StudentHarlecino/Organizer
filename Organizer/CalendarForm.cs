@@ -1,4 +1,4 @@
-﻿﻿using Organizer.Models;
+﻿using Organizer.Models;
 using System;
 using System.Drawing;
 using System.Linq;
@@ -45,7 +45,7 @@ namespace Organizer
             this.MinimumSize = new Size(700, 500);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.Font = new Font("Segoe UI", 10);
-            this.BackColor = Color.FromArgb(245, 222, 179);
+            this.BackColor = Color.FromArgb(240, 255, 240); // Светло-зеленый фон формы
 
             // Главный контейнер
             var mainPanel = new TableLayoutPanel
@@ -53,7 +53,7 @@ namespace Organizer
                 Dock = DockStyle.Fill,
                 RowCount = 3,
                 ColumnCount = 1,
-                BackColor = Color.FromArgb(245, 222, 179)
+                BackColor = Color.FromArgb(240, 255, 240)
             };
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70)); // Навигация + имя пользователя
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // Дни недели
@@ -63,7 +63,7 @@ namespace Organizer
             var navPanel = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(139, 69, 19),
+                BackColor = Color.FromArgb(34, 139, 34), // Лесной зеленый
                 Padding = new Padding(0, 10, 0, 0)
             };
 
@@ -83,7 +83,8 @@ namespace Organizer
                 Location = new Point(0, 0),
                 Font = new Font("Segoe UI", 12),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White,
+                BackColor = Color.FromArgb(144, 238, 144), // Светло-зеленый
+                ForeColor = Color.DarkGreen,
                 Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
             prevMonthButton.Click += (s, e) => { currentDate = currentDate.AddMonths(-1); UpdateCalendar(); };
@@ -95,7 +96,7 @@ namespace Organizer
                 Size = new Size(300, 40),
                 Location = new Point(50, 0),
                 Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = Color.FromArgb(255, 215, 0),
+                ForeColor = Color.White,
                 Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
 
@@ -107,7 +108,8 @@ namespace Organizer
                 Location = new Point(350, 0),
                 Font = new Font("Segoe UI", 12),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White,
+                BackColor = Color.FromArgb(144, 238, 144), // Светло-зеленый
+                ForeColor = Color.DarkGreen,
                 Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
             nextMonthButton.Click += (s, e) => { currentDate = currentDate.AddMonths(1); UpdateCalendar(); };
@@ -124,7 +126,7 @@ namespace Organizer
                 AutoSize = true,
                 TextAlign = ContentAlignment.MiddleRight,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(255, 215, 0),
+                ForeColor = Color.White,
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
@@ -143,7 +145,7 @@ namespace Organizer
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 7,
-                BackColor = Color.FromArgb(160, 82, 45)
+                BackColor = Color.FromArgb(50, 205, 50) // Лаймовый зеленый
             };
             for (int i = 0; i < 7; i++)
             {
@@ -165,7 +167,7 @@ namespace Organizer
                 Dock = DockStyle.Fill,
                 ColumnCount = 7,
                 RowCount = 6,
-                BackColor = Color.FromArgb(245, 222, 179),
+                BackColor = Color.FromArgb(240, 255, 240), // Светло-зеленый фон
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
                 Margin = new Padding(5)
             };
@@ -197,7 +199,6 @@ namespace Organizer
             string[] days = { "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб" };
             return days[index];
         }
-
 
         private void UpdateCalendar()
         {
@@ -233,7 +234,7 @@ namespace Organizer
                 // Восстанавливаем выделение, если это выбранный день
                 if (selectedDate.HasValue && date.Date == selectedDate.Value.Date)
                 {
-                    dayPanel.BackColor = Color.FromArgb(139, 69, 19);
+                    dayPanel.BackColor = Color.FromArgb(152, 251, 152); // Пастельный зеленый
                     selectedDayPanel = dayPanel;
                 }
 
@@ -264,23 +265,26 @@ namespace Organizer
                 Margin = new Padding(2),
                 Tag = date,
                 Cursor = Cursors.Hand,
-                BackColor = Color.White // Изначально белый цвет
+                BackColor = Color.White, // Белый фон для лучшей читаемости
+                BorderStyle = BorderStyle.FixedSingle // Добавляем границу
             };
 
-            // Если это сегодня - голубой фон
+            // Если это сегодня - светло-голубой фон с темной границей
             if (date.Date == DateTime.Today.Date)
             {
-                dayPanel.BackColor = Color.LightSkyBlue;
+                dayPanel.BackColor = Color.FromArgb(173, 216, 230);
+                dayPanel.BorderStyle = BorderStyle.Fixed3D;
             }
 
-            // Метка с числом
+            // Метка с числом - делаем более заметной
             var dayLabel = new Label
             {
                 Text = day.ToString(),
                 Dock = DockStyle.Top,
                 TextAlign = ContentAlignment.MiddleRight,
                 Padding = new Padding(0, 2, 5, 0),
-                Font = new Font("Segoe UI", 10)
+                Font = new Font("Segoe UI", 10, FontStyle.Bold), // Жирный шрифт
+                ForeColor = Color.Black // Черный цвет для лучшей видимости
             };
 
             // Проверяем задачи на этот день
@@ -297,8 +301,9 @@ namespace Organizer
                     Text = $"Задач: {tasksCount}",
                     Dock = DockStyle.Bottom,
                     TextAlign = ContentAlignment.MiddleCenter,
-                    ForeColor = Color.FromArgb(255, 69, 0),
-                    Font = new Font("Segoe UI", 8)
+                    ForeColor = Color.FromArgb(0, 80, 0), // Темно-зеленый
+                    Font = new Font("Segoe UI", 8, FontStyle.Bold), // Жирный шрифт
+                    BackColor = Color.FromArgb(220, 255, 220) // Светло-зеленый фон
                 };
                 dayPanel.Controls.Add(tasksLabel);
             }
@@ -316,16 +321,19 @@ namespace Organizer
             {
                 if (((DateTime)selectedDayPanel.Tag).Date == DateTime.Today.Date)
                 {
-                    selectedDayPanel.BackColor = Color.LightSkyBlue;
+                    selectedDayPanel.BackColor = Color.FromArgb(173, 216, 230);
+                    selectedDayPanel.BorderStyle = BorderStyle.Fixed3D;
                 }
                 else
                 {
                     selectedDayPanel.BackColor = Color.White;
+                    selectedDayPanel.BorderStyle = BorderStyle.FixedSingle;
                 }
             }
 
-            // Выделяем текущий день серым цветом
-            dayPanel.BackColor = Color.FromArgb(200, 200, 200); // Серый цвет
+            // Выделяем текущий день
+            dayPanel.BackColor = Color.FromArgb(200, 255, 200); // Яркий светло-зеленый
+            dayPanel.BorderStyle = BorderStyle.Fixed3D; // Объемная граница
             selectedDayPanel = dayPanel;
 
             ShowTasksForDate(date);
