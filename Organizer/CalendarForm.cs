@@ -1,8 +1,4 @@
 ﻿using Organizer.Models;
-using System;
-using System.Drawing;
-using System.Linq;
-using System.Windows.Forms;
 
 namespace Organizer
 {
@@ -16,6 +12,8 @@ namespace Organizer
         private Panel selectedDayPanel = null;
         private Button prevMonthButton;
         private Button nextMonthButton;
+        private EventHandler userNameLabelClickHandler;
+        private EventHandler avatarClickHandler;
 
         public CalendarForm()
         {
@@ -131,18 +129,6 @@ namespace Organizer
                 Cursor = Cursors.Hand,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
-            userNameLabel.Click += (s, e) =>
-            {
-                var user = dbContext.UserProfiles.FirstOrDefault();
-                if (user != null)
-                {
-                    MessageBox.Show("Здесь можно открыть окно редактирования профиля.", "Редактировать профиль");
-                }
-                else
-                {
-                    MessageBox.Show("Здесь можно открыть окно регистрации.", "Регистрация");
-                }
-            };
 
             // Добавляем имя пользователя в navPanel с правильным расположением
             navPanel.Controls.Add(userNameLabel);
@@ -195,42 +181,66 @@ namespace Organizer
 
             this.Controls.Add(mainPanel);
         }
-
-        private Image GetDefaultAvatar()
+        private Image GetUserAvatar()
         {
-            // Создаем простую круглую аватарку с инициалами
+            var user = dbContext.UserProfiles.FirstOrDefault();
+            if (user == null) return CreateDefaultAvatar(null);
+
+            // Если есть путь к аватару и файл существует
+            if (!string.IsNullOrEmpty(user.AvatarPath) && System.IO.File.Exists(user.AvatarPath))
+            {
+                try
+                {
+                    return Image.FromFile(user.AvatarPath);
+                }
+                catch
+                {
+                    // Если не удалось загрузить, вернуть аватар по умолчанию
+                    return CreateDefaultAvatar(user);
+                }
+            }
+
+            // Если нет аватара, создать по умолчанию
+            return CreateDefaultAvatar(user);
+        }
+        private Image CreateDefaultAvatar(UserProfile user)
+        {
             var bmp = new Bitmap(40, 40);
             using (var g = Graphics.FromImage(bmp))
             {
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-
-                // Заливаем круг фоном
                 g.FillEllipse(Brushes.LightGray, 0, 0, 39, 39);
 
-                // Если пользователь есть, рисуем инициалы
-                var user = dbContext.UserProfiles.FirstOrDefault();
-                if (user != null)
+                string initials = user != null ? $"{user.LastName?[0]}{user.FirstName?[0]}".ToUpper() : "?";
+                using (var font = new Font("Segoe UI", 12, FontStyle.Bold))
                 {
-                    string initials = $"{user.LastName?[0]}{user.FirstName?[0]}".ToUpper();
-                    using (var font = new Font("Segoe UI", 12, FontStyle.Bold))
-                    {
-                        var size = g.MeasureString(initials, font);
-                        g.DrawString(initials, font, Brushes.DarkGreen,
-                            (bmp.Width - size.Width) / 2,
-                            (bmp.Height - size.Height) / 2);
-                    }
+                    var size = g.MeasureString(initials, font);
+                    g.DrawString(initials, font, Brushes.DarkGreen,
+                        (bmp.Width - size.Width) / 2,
+                        (bmp.Height - size.Height) / 2);
                 }
             }
             return bmp;
         }
+
         private void LoadUserName()
         {
             var user = dbContext.UserProfiles.FirstOrDefault();
 
-            // Удаляем старые элементы, если они есть
+            // Удаляем старые элементы и обработчики
             foreach (Control c in userNameLabel.Parent.Controls.OfType<PictureBox>().ToList())
             {
+                if (avatarClickHandler != null)
+                {
+                    c.Click -= avatarClickHandler;
+                }
                 userNameLabel.Parent.Controls.Remove(c);
+            }
+
+            // Удаляем старый обработчик с метки
+            if (userNameLabelClickHandler != null)
+            {
+                userNameLabel.Click -= userNameLabelClickHandler;
             }
 
             if (user != null)
@@ -240,7 +250,7 @@ namespace Organizer
                 // Добавляем аватарку
                 var avatarBox = new PictureBox
                 {
-                    Image = GetDefaultAvatar(),
+                    Image = GetUserAvatar(),
                     Size = new Size(40, 40),
                     SizeMode = PictureBoxSizeMode.StretchImage,
                     Cursor = Cursors.Hand,
@@ -249,20 +259,21 @@ namespace Organizer
                     BackColor = Color.White
                 };
 
-                // Позиционируем аватарку справа от имени
+                // Позиционирование
                 avatarBox.Location = new Point(
                     userNameLabel.Parent.Width - avatarBox.Width - 20,
                     (userNameLabel.Parent.Height - avatarBox.Height) / 2);
 
-                // Сдвигаем метку имени влево
                 userNameLabel.Location = new Point(
                     avatarBox.Left - userNameLabel.Width - 10,
                     (userNameLabel.Parent.Height - userNameLabel.Height) / 2);
 
-                avatarBox.Click += (s, e) =>
-                {
-                    MessageBox.Show("Здесь можно открыть окно редактирования профиля или смену аватарки.", "Редактировать профиль");
-                };
+                // Создаем и добавляем новые обработчики
+                avatarClickHandler = (s, e) => ShowUserProfileForm(user);
+                userNameLabelClickHandler = (s, e) => ShowUserProfileForm(user);
+
+                avatarBox.Click += avatarClickHandler;
+                userNameLabel.Click += userNameLabelClickHandler;
 
                 userNameLabel.Parent.Controls.Add(avatarBox);
             }
@@ -272,6 +283,20 @@ namespace Organizer
                 userNameLabel.Location = new Point(
                     userNameLabel.Parent.Width - userNameLabel.Width - 20,
                     (userNameLabel.Parent.Height - userNameLabel.Height) / 2);
+
+                userNameLabelClickHandler = (s, e) => ShowUserProfileForm(null);
+                userNameLabel.Click += userNameLabelClickHandler;
+            }
+        }
+
+        private void ShowUserProfileForm(UserProfile user)
+        {
+            using (var form = new UserProfileForm(dbContext, user))
+            {
+                if (form.ShowDialog() == DialogResult.OK)
+                {
+                    LoadUserName(); // Обновляем интерфейс
+                }
             }
         }
 
