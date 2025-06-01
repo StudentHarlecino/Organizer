@@ -1,8 +1,4 @@
-﻿using System;
-using System.Windows.Forms;
-using System.IO;
-using System.Drawing;
-using Organizer.Models;
+﻿using Organizer.Models;
 
 namespace Organizer
 {
@@ -25,7 +21,7 @@ namespace Organizer
         private void InitializeComponents()
         {
             this.Text = "Редактирование профиля";
-            this.Size = new Size(400, 420); // Увеличили высоту формы
+            this.Size = new Size(400, 420);
             this.StartPosition = FormStartPosition.CenterParent;
             this.Font = new Font("Segoe UI", 10);
             this.BackColor = Color.FromArgb(240, 255, 240);
@@ -38,24 +34,18 @@ namespace Organizer
                 RowCount = 7
             };
 
-            // Настройка стилей столбцов и строк
             mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            // Основные данные пользователя (4 строки)
             for (int i = 0; i < 4; i++)
             {
                 mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             }
 
-            // Строка для аватара
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
-
-            // Пустое пространство и кнопки
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
 
-            // Элементы формы (ФИО и email)
             var lblLastName = new Label { Text = "Фамилия:", TextAlign = ContentAlignment.MiddleRight };
             var txtLastName = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(5) };
 
@@ -68,7 +58,6 @@ namespace Organizer
             var lblEmail = new Label { Text = "Email:", TextAlign = ContentAlignment.MiddleRight };
             var txtEmail = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(5) };
 
-            // Добавляем элементы на панель (первые 4 строки)
             mainPanel.Controls.Add(lblLastName, 0, 0);
             mainPanel.Controls.Add(txtLastName, 1, 0);
             mainPanel.Controls.Add(lblFirstName, 0, 1);
@@ -78,14 +67,13 @@ namespace Organizer
             mainPanel.Controls.Add(lblEmail, 0, 3);
             mainPanel.Controls.Add(txtEmail, 1, 3);
 
-            // Блок аватара (5-я строка)
             var lblAvatar = new Label { Text = "Аватар:", TextAlign = ContentAlignment.MiddleRight };
             avatarPictureBox = new PictureBox
             {
                 SizeMode = PictureBoxSizeMode.Zoom,
                 BorderStyle = BorderStyle.FixedSingle,
                 Dock = DockStyle.Fill,
-                Margin = new Padding(5),
+                Padding = new Padding(5),
                 BackColor = Color.White
             };
 
@@ -94,11 +82,11 @@ namespace Organizer
                 Text = "Выбрать аватар",
                 Height = 30,
                 Dock = DockStyle.Top,
-                Margin = new Padding(5, 5, 5, 2), // Уменьшили нижний отступ
+                Margin = new Padding(5, 5, 5, 2),
                 BackColor = Color.FromArgb(70, 130, 180),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Padding = new Padding(0, 0, 0, 0) // Убрали внутренние отступы
+                Padding = new Padding(0, 0, 0, 0)
             };
 
             var btnRemoveAvatar = new Button
@@ -106,14 +94,13 @@ namespace Organizer
                 Text = "Удалить аватар",
                 Height = 30,
                 Dock = DockStyle.Top,
-                Margin = new Padding(5, 2, 5, 5), // Уменьшили верхний отступ
+                Margin = new Padding(5, 2, 5, 5),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Padding = new Padding(0, 0, 0, 0) // Убрали внутренние отступы
+                Padding = new Padding(0, 0, 0, 0)
             };
 
-            // Загружаем текущий аватар, если он есть
             if (!string.IsNullOrEmpty(_avatarPath) && System.IO.File.Exists(_avatarPath))
             {
                 avatarPictureBox.Image = Image.FromFile(_avatarPath);
@@ -135,7 +122,6 @@ namespace Organizer
             mainPanel.Controls.Add(lblAvatar, 0, 4);
             mainPanel.Controls.Add(avatarPanel, 1, 4);
 
-            // Кнопки сохранения/отмены (7-я строка)
             var btnSave = new Button
             {
                 Text = "Сохранить",
@@ -173,7 +159,6 @@ namespace Organizer
             mainPanel.Controls.Add(buttonPanel, 0, 6);
             mainPanel.SetColumnSpan(buttonPanel, 2);
 
-            // Заполняем данные, если профиль существует
             if (_userProfile != null)
             {
                 txtLastName.Text = _userProfile.LastName;
@@ -182,7 +167,6 @@ namespace Organizer
                 txtEmail.Text = _userProfile.Email ?? "";
             }
 
-            // Обработчики событий
             btnChangeAvatar.Click += (s, e) => ChangeAvatar();
             btnRemoveAvatar.Click += (s, e) => RemoveAvatar();
 

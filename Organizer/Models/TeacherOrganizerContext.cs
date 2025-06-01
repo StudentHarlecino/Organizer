@@ -21,8 +21,6 @@ public partial class TeacherOrganizerContext : DbContext
 
     public virtual DbSet<TaskCategory> TaskCategories { get; set; }
 
-    public virtual DbSet<TaskHistory> TaskHistories { get; set; }
-
     public virtual DbSet<UserProfile> UserProfiles { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -68,6 +66,7 @@ public partial class TeacherOrganizerContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnName("created_at");
+            entity.Property(e => e.DeadlineDate).HasColumnName("deadline_date");
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.Priority)
                 .HasDefaultValue(2)
@@ -118,24 +117,6 @@ public partial class TeacherOrganizerContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(50)
                 .HasColumnName("name");
-        });
-
-        modelBuilder.Entity<TaskHistory>(entity =>
-        {
-            entity.HasKey(e => e.HistoryId).HasName("task_history_pkey");
-
-            entity.ToTable("task_history");
-
-            entity.Property(e => e.HistoryId).HasColumnName("history_id");
-            entity.Property(e => e.ChangeDescription).HasColumnName("change_description");
-            entity.Property(e => e.ChangedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("changed_at");
-            entity.Property(e => e.TaskId).HasColumnName("task_id");
-
-            entity.HasOne(d => d.Task).WithMany(p => p.TaskHistories)
-                .HasForeignKey(d => d.TaskId)
-                .HasConstraintName("task_history_task_id_fkey");
         });
 
         modelBuilder.Entity<UserProfile>(entity =>

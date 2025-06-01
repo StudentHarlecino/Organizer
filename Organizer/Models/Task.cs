@@ -23,9 +23,9 @@ public partial class Task
 
     public int? CategoryId { get; set; }
 
-    public virtual TaskCategory? Category { get; set; }
+    public DateOnly? DeadlineDate { get; set; }
 
-    public virtual ICollection<TaskHistory> TaskHistories { get; set; } = new List<TaskHistory>();
+    public virtual TaskCategory? Category { get; set; }
 
     public virtual ICollection<File> Files { get; set; } = new List<File>();
 }
