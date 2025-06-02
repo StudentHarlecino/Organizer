@@ -3,12 +3,14 @@ using System.Diagnostics;
 
 namespace Organizer
 {
+    // Форма для создания/редактирования задачи
     public partial class TaskEditForm : Form
     {
         private readonly TeacherOrganizerContext _dbContext;
         private readonly Models.Task _task;
         private List<Models.File> _selectedFiles = new List<Models.File>();
 
+        // Инициализация формы с контекстом БД и задачей
         public TaskEditForm(TeacherOrganizerContext dbContext, Models.Task task)
         {
             _dbContext = dbContext;
@@ -18,8 +20,10 @@ namespace Organizer
             LoadData();
         }
 
+        // Инициализация компонентов формы
         private void InitializeComponents()
         {
+            // Настройка основных параметров формы
             this.Text = _task.TaskId == 0 ? "Создание задачи" : "Редактирование задачи";
             this.Size = new Size(650, 550);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -28,12 +32,14 @@ namespace Organizer
             this.MaximizeBox = false;
             this.MinimizeBox = false;
 
+            // Создание главной панели
             var mainPanel = new Panel
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(15)
             };
 
+            // Создание таблицы для компоновки элементов
             var tableLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -42,6 +48,7 @@ namespace Organizer
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
 
+            // Настройка строк таблицы
             tableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             tableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             tableLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -51,15 +58,24 @@ namespace Organizer
             tableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
             tableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
 
-            var lblCategory = new Label { Text = "Категория:", TextAlign = ContentAlignment.MiddleLeft };
+            // Создание элементов управления
+            var lblCategory = new Label
+            {
+                Text = "Категория:",
+                TextAlign = ContentAlignment.MiddleLeft,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(3, 0, 0, 2)
+            };
+
             var cmbCategory = new ComboBox
             {
                 Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Name = "cmbCategory",
-                Margin = new Padding(0, 5, 0, 5)
+                Margin = new Padding(3, 5, 0, 5)
             };
 
+            // Панель для категории с кнопками
             var categoryPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -70,9 +86,11 @@ namespace Organizer
                     new ColumnStyle(SizeType.Percent, 100F),
                     new ColumnStyle(SizeType.Absolute, 35F),
                     new ColumnStyle(SizeType.Absolute, 35F)
-                }
+                },
+                Margin = new Padding(0, 5, 0, 0)
             };
 
+            // Кнопки для работы с категориями
             var btnAddCategory = new Button
             {
                 Text = "+",
@@ -99,6 +117,7 @@ namespace Organizer
             };
             btnDeleteCategory.Click += BtnDeleteCategory_Click;
 
+            // Добавление элементов на панель категории
             categoryPanel.Controls.Add(cmbCategory, 0, 0);
             categoryPanel.Controls.Add(btnAddCategory, 1, 0);
             categoryPanel.Controls.Add(btnDeleteCategory, 2, 0);
@@ -106,6 +125,7 @@ namespace Organizer
             cmbCategory.Dock = DockStyle.Fill;
             cmbCategory.Width = categoryPanel.Width - 60;
 
+            // Создание остальных элементов формы
             var lblTitle = new Label { Text = "Название:", TextAlign = ContentAlignment.MiddleLeft };
             var txtTitle = new TextBox { Dock = DockStyle.Fill, Name = "txtTitle" };
 
@@ -154,6 +174,7 @@ namespace Organizer
 
             pnlFiles.Controls.Add(btnAddFile);
 
+            // Кнопки управления формой
             var btnDelete = new Button
             {
                 Text = "Удалить",
@@ -187,6 +208,7 @@ namespace Organizer
                 Margin = new Padding(5, 10, 10, 0)
             };
 
+            // Добавление элементов в таблицу
             var statusPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -211,17 +233,18 @@ namespace Organizer
             tableLayout.Controls.Add(lblFiles, 0, 6);
             tableLayout.Controls.Add(pnlFiles, 1, 6);
 
+            // Панель для кнопок внизу формы
             var buttonPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = _task.TaskId == 0 ? 2 : 3,
                 RowCount = 1
             };
+
             if (_task.TaskId == 0)
             {
                 buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
                 buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-
                 buttonPanel.Controls.Add(btnSave, 0, 0);
                 buttonPanel.Controls.Add(btnCancel, 1, 0);
             }
@@ -230,7 +253,6 @@ namespace Organizer
                 buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
                 buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
                 buttonPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
-
                 buttonPanel.Controls.Add(btnCancel, 2, 0);
                 buttonPanel.Controls.Add(btnSave, 0, 0);
                 buttonPanel.Controls.Add(btnDelete, 1, 0);
@@ -242,6 +264,7 @@ namespace Organizer
             mainPanel.Controls.Add(tableLayout);
             this.Controls.Add(mainPanel);
 
+            // Подписка на события
             btnSave.Click += BtnSave_Click;
             btnDelete.Click += BtnDelete_Click;
             btnCancel.Click += (s, e) => this.Close();
@@ -251,6 +274,7 @@ namespace Organizer
             };
         }
 
+        // Обработчик добавления новой категории
         private void BtnAddCategory_Click(object sender, EventArgs e)
         {
             var cmbCategory = (sender as Button)?.Tag as ComboBox;
@@ -372,6 +396,7 @@ namespace Organizer
             }
         }
 
+        // Обработчик удаления категории
         private void BtnDeleteCategory_Click(object sender, EventArgs e)
         {
             var cmbCategory = (sender as Button)?.Tag as ComboBox;
@@ -410,6 +435,7 @@ namespace Organizer
             }
         }
 
+        // Загрузка данных в форму
         private void LoadData()
         {
             var categoryPanel = this.Controls.Find("categoryPanel", true).FirstOrDefault() as Panel;
@@ -429,19 +455,23 @@ namespace Organizer
                 return;
             }
 
+            // Загрузка категорий
             var categories = _dbContext.TaskCategories.ToList();
             cmbCategory.DataSource = categories;
             cmbCategory.DisplayMember = "Name";
             cmbCategory.ValueMember = "CategoryId";
 
+            // Загрузка приоритетов
             cmbPriority.Items.AddRange(new object[] { "Низкий", "Средний", "Высокий" });
 
+            // Установка значений из задачи
             txtTitle.Text = _task.Title;
             txtDescription.Text = _task.Description;
             cmbCategory.SelectedValue = _task.CategoryId ?? 0;
             cmbPriority.SelectedIndex = _task.Priority - 1;
             chkCompleted.Checked = _task.Completed;
 
+            // Настройка дедлайна
             if (_task.DeadlineDate.HasValue)
             {
                 dtpDeadline.Value = _task.DeadlineDate.Value.ToDateTime(TimeOnly.MinValue);
@@ -454,6 +484,7 @@ namespace Organizer
                 dtpDeadline.CustomFormat = " ";
             }
 
+            // Загрузка файлов, если задача уже существует
             if (_task.TaskId != 0)
             {
                 _dbContext.Entry(_task).Collection(t => t.Files).Load();
@@ -462,6 +493,7 @@ namespace Organizer
             }
         }
 
+        // Обработчик добавления файлов
         private void BtnAddFile_Click(object sender, EventArgs e)
         {
             using (var openFileDialog = new OpenFileDialog())
@@ -491,6 +523,7 @@ namespace Organizer
             }
         }
 
+        // Обновление списка файлов на форме
         private void UpdateFilesList()
         {
             var mainPanel = this.Controls[0] as Panel;
@@ -513,6 +546,7 @@ namespace Organizer
             btnAddFile.Click += BtnAddFile_Click;
             pnlFiles.Controls.Add(btnAddFile);
 
+            // Добавление файлов в список
             foreach (var file in _selectedFiles)
             {
                 var filePanel = new Panel
@@ -566,6 +600,7 @@ namespace Organizer
             }
         }
 
+        // Открытие файла
         private void OpenFile(Models.File file)
         {
             try
@@ -582,6 +617,7 @@ namespace Organizer
             }
         }
 
+        // Открытие папки с файлом
         private void OpenFileFolder(Models.File file)
         {
             try
@@ -595,6 +631,7 @@ namespace Organizer
             }
         }
 
+        // Обработчик сохранения задачи
         private void BtnSave_Click(object sender, EventArgs e)
         {
             var txtTitle = this.Controls.Find("txtTitle", true).FirstOrDefault() as TextBox;
@@ -604,44 +641,38 @@ namespace Organizer
             var dtpDeadline = this.Controls.Find("dtpDeadline", true).FirstOrDefault() as DateTimePicker;
             var chkCompleted = this.Controls.Find("chkCompleted", true).FirstOrDefault() as CheckBox;
 
+            // Валидация названия задачи
             if (string.IsNullOrWhiteSpace(txtTitle.Text))
             {
                 MessageBox.Show("Название задачи не может быть пустым", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
+            // Обновление данных задачи
             _task.Title = txtTitle.Text;
             _task.Description = txtDescription.Text;
             _task.Priority = cmbPriority.SelectedIndex + 1;
             _task.CategoryId = (int?)cmbCategory.SelectedValue;
             _task.DeadlineDate = dtpDeadline.Checked ? DateOnly.FromDateTime(dtpDeadline.Value) : null;
             _task.Completed = chkCompleted.Checked;
-            _task.UpdatedAt = DateTime.UtcNow;
 
             bool newCompletedStatus = chkCompleted.Checked;
             _task.Completed = newCompletedStatus;
-            _task.UpdatedAt = DateTime.UtcNow;
 
-            if (_task.Completed)
-            {
-                _task.CompletedAt = _task.CompletedAt ?? DateTime.UtcNow;
-            }
-            else
-            {
-                _task.CompletedAt = null;
-            }
-
+            // Добавление новых файлов
             foreach (var file in _selectedFiles.Where(f => f.FileId == 0))
             {
                 _dbContext.Files.Add(file);
             }
 
+            // Обновление списка файлов задачи
             _task.Files.Clear();
             foreach (var file in _selectedFiles)
             {
                 _task.Files.Add(file);
             }
 
+            // Сохранение изменений
             try
             {
                 _dbContext.SaveChanges();
@@ -654,6 +685,7 @@ namespace Organizer
             }
         }
 
+        // Обработчик удаления задачи
         private void BtnDelete_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Вы действительно хотите удалить эту задачу?", "Подтверждение удаления",
@@ -677,6 +709,7 @@ namespace Organizer
         }
     }
 
+    // Класс для определения MIME-типов файлов
     public static class MimeTypes
     {
         private static readonly Dictionary<string, string> MimeTypeMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -697,6 +730,7 @@ namespace Organizer
             {".rar", "application/x-rar-compressed"}
         };
 
+        // Получение MIME-типа по расширению файла
         public static string GetMimeType(string fileName)
         {
             var extension = Path.GetExtension(fileName);

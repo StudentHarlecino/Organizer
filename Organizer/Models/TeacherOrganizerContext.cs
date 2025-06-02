@@ -62,7 +62,6 @@ public partial class TeacherOrganizerContext : DbContext
             entity.Property(e => e.Completed)
                 .HasDefaultValue(false)
                 .HasColumnName("completed");
-            entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnName("created_at");
@@ -74,9 +73,6 @@ public partial class TeacherOrganizerContext : DbContext
             entity.Property(e => e.Title)
                 .HasMaxLength(100)
                 .HasColumnName("title");
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("updated_at");
 
             entity.HasOne(d => d.Category).WithMany(p => p.Tasks)
                 .HasForeignKey(d => d.CategoryId)
@@ -139,6 +135,9 @@ public partial class TeacherOrganizerContext : DbContext
             entity.Property(e => e.MiddleName)
                 .HasMaxLength(50)
                 .HasColumnName("middle_name");
+            entity.Property(e => e.ReceiveMailNotifications)
+                .HasDefaultValue(true)
+                .HasColumnName("receive_mail_notifications");
         });
 
         OnModelCreatingPartial(modelBuilder);

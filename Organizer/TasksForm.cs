@@ -1,31 +1,34 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Organizer.Models;
-using System.Data;
+﻿using Organizer.Models;
+using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
 namespace Organizer
 {
+    // Форма для просмотра и управления задачами на выбранную дату
     public partial class TasksForm : Form
     {
         private readonly TeacherOrganizerContext _dbContext;
         private readonly DateTime _selectedDate;
         private bool _hasTasks = false;
 
+        // Инициализация формы с передачей контекста БД и выбранной даты
         public TasksForm(TeacherOrganizerContext dbContext, DateTime selectedDate)
         {
             _dbContext = dbContext;
             _selectedDate = selectedDate;
             InitializeComponent();
-            InitializeComponents();
+            InitializeForm();
             LoadTasks();
         }
 
-        private void InitializeComponents()
+        // Настройка основных параметров формы
+        private void InitializeForm()
         {
-            this.Text = $"Задачи на {_selectedDate.ToShortDateString()}";
-            this.Size = new Size(800, 500);
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.BackColor = Color.FromArgb(240, 255, 240);
-            this.Font = new Font("Segoe UI", 10);
+            Text = $"Задачи на {_selectedDate.ToShortDateString()}";
+            Size = new Size(800, 500);
+            StartPosition = FormStartPosition.CenterParent;
+            BackColor = Color.FromArgb(240, 255, 240);
+            Font = new Font("Segoe UI", 10);
 
             var mainPanel = new Panel
             {
@@ -33,16 +36,18 @@ namespace Organizer
                 Padding = new Padding(10)
             };
 
-            this.Controls.Add(mainPanel);
+            Controls.Add(mainPanel);
         }
 
+        // Загрузка задач из базы данных
         private void LoadTasks()
         {
-            this.Controls[0].Controls.Clear();
+            Controls[0].Controls.Clear();
 
             var startOfDayUtc = _selectedDate.Date.ToUniversalTime();
             var endOfDayUtc = startOfDayUtc.AddDays(1);
 
+            // Получение задач с учетом категорий и файлов
             var tasks = _dbContext.Tasks
                 .Include(t => t.Category)
                 .Include(t => t.Files)
@@ -52,21 +57,14 @@ namespace Organizer
                 .ToList();
 
             _hasTasks = tasks.Any();
-
-            if (!_hasTasks)
-            {
-                ShowNoTasksView();
-            }
-            else
-            {
-                ShowTasksListView(tasks);
-            }
+            if (_hasTasks) ShowTasksListView(tasks);
+            else ShowNoTasksView();
         }
 
+        // Отображение сообщения при отсутствии задач
         private void ShowNoTasksView()
         {
-            var mainPanel = this.Controls[0];
-
+            var mainPanel = Controls[0];
             var centerPanel = new Panel
             {
                 Size = new Size(400, 150),
@@ -81,8 +79,7 @@ namespace Organizer
                 ForeColor = Color.Gray,
                 AutoSize = false,
                 Size = new Size(400, 40),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Location = new Point(0, 0)
+                TextAlign = ContentAlignment.MiddleCenter
             };
 
             var addButton = new Button
@@ -99,15 +96,15 @@ namespace Organizer
             addButton.FlatAppearance.BorderSize = 0;
             addButton.Click += (s, e) => AddNewTask();
 
-            centerPanel.Controls.Add(addButton);
             centerPanel.Controls.Add(messageLabel);
+            centerPanel.Controls.Add(addButton);
             mainPanel.Controls.Add(centerPanel);
         }
 
+        // Отображение списка задач в виде таблицы
         private void ShowTasksListView(List<Models.Task> tasks)
         {
-            var mainPanel = this.Controls[0];
-
+            var mainPanel = Controls[0];
             var tableLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -118,79 +115,118 @@ namespace Organizer
                 }
             };
 
-            var tasksListView = new ListView
+            var tasksListView = CreateTasksListView(tasks);
+            var buttonPanel = CreateButtonPanel();
+
+            tableLayout.Controls.Add(tasksListView, 0, 0);
+            tableLayout.Controls.Add(buttonPanel, 0, 1);
+            mainPanel.Controls.Add(tableLayout);
+        }
+
+        // Создание и настройка ListView для отображения задач
+        private ListView CreateTasksListView(List<Models.Task> tasks)
+        {
+            var listView = new ListView
             {
                 Dock = DockStyle.Fill,
                 View = View.Details,
                 FullRowSelect = true,
-                MultiSelect = false,
                 GridLines = true,
                 HeaderStyle = ColumnHeaderStyle.Nonclickable,
                 Font = new Font("Segoe UI", 9)
             };
 
-            tasksListView.Columns.Add("Статус", 100);
-            tasksListView.Columns.Add("Приоритет", 80);
-            tasksListView.Columns.Add("Категория", 120);
-            tasksListView.Columns.Add("Название", 200);
-            tasksListView.Columns.Add("Дедлайн", 100);
-            tasksListView.Columns.Add("Файлы", 150);
+            // Настройка колонок
+            listView.Columns.AddRange(new[]
+            {
+                new ColumnHeader { Text = "Статус", Width = 100 },
+                new ColumnHeader { Text = "Приоритет", Width = 80 },
+                new ColumnHeader { Text = "Категория", Width = 120 },
+                new ColumnHeader { Text = "Название", Width = 200 },
+                new ColumnHeader { Text = "Дедлайн", Width = 100 },
+                new ColumnHeader { Text = "Файлы", Width = 150 }
+            });
 
-            tasksListView.DoubleClick += (s, e) => EditSelectedTask(tasksListView);
+            listView.DoubleClick += (s, e) => EditSelectedTask(listView);
 
+            // Заполнение данными
             foreach (var task in tasks)
             {
-                string statusText;
-                if (task.Completed)
+                var item = new ListViewItem(GetTaskStatusText(task))
                 {
-                    statusText = "✓ Выполнена";
-                }
-                else if (task.DeadlineDate.HasValue && task.DeadlineDate.Value.ToDateTime(TimeOnly.MinValue) < DateTime.Today)
-                {
-                    statusText = "⚠ Просрочено";
-                }
-                else
-                {
-                    statusText = "⏳ В работе";
-                }
-
-                var item = new ListViewItem(statusText);
-                item.SubItems.Add(GetPriorityName(task.Priority));
-                item.SubItems.Add(task.Category?.Name ?? "Без категории");
-                item.SubItems.Add(task.Title);
-                item.SubItems.Add(task.DeadlineDate?.ToString("dd.MM.yyyy") ?? "Нет");
-                item.SubItems.Add(task.Files.Any() ? $"{task.Files.Count} файлов" : "Нет файлов");
-                item.Tag = task.TaskId;
-
-                if (task.Completed)
-                {
-                    item.BackColor = Color.FromArgb(220, 255, 220);
-                    item.Font = new Font(tasksListView.Font, FontStyle.Strikeout);
-                }
-                else if (task.DeadlineDate.HasValue)
-                {
-                    var daysUntilDeadline = (task.DeadlineDate.Value.ToDateTime(TimeOnly.MinValue) - DateTime.Today);
-                    if (daysUntilDeadline.TotalDays <= 1 && daysUntilDeadline.TotalDays >= 0)
-                    {
-                        item.BackColor = Color.FromArgb(220, 53, 69);
-                        item.Font = new Font(tasksListView.Font, FontStyle.Bold);
+                    Tag = task.TaskId,
+                    SubItems = {
+                        GetPriorityName(task.Priority),
+                        task.Category?.Name ?? "Без категории",
+                        task.Title,
+                        task.DeadlineDate?.ToString("dd.MM.yyyy") ?? "Нет",
+                        task.Files.Any() ? $"{task.Files.Count} файлов" : "Нет файлов"
                     }
-                    else if (daysUntilDeadline.TotalDays < 0)
-                    {
-                        item.BackColor = Color.FromArgb(150, 150, 150);
-                        item.Font = new Font(tasksListView.Font, FontStyle.Italic);
-                    }
-                }
+                };
 
-                tasksListView.Items.Add(item);
+                ApplyTaskStyle(item, task);
+                listView.Items.Add(item);
             }
 
-            var buttonPanel = new FlowLayoutPanel
+            return listView;
+        }
+
+        // Определение текста статуса задачи
+        private string GetTaskStatusText(Models.Task task)
+        {
+            if (task.Completed) return "✓ Выполнена";
+            if (task.DeadlineDate.HasValue && task.DeadlineDate.Value.ToDateTime(TimeOnly.MinValue) < DateTime.Today)
+                return "⚠ Просрочено";
+            return "⏳ В работе";
+        }
+
+        // Применение стилей к задаче в зависимости от статуса
+        private void ApplyTaskStyle(ListViewItem item, Models.Task task)
+        {
+            if (task.Completed)
+            {
+                item.BackColor = Color.FromArgb(220, 255, 220);
+                item.Font = new Font(item.Font, FontStyle.Strikeout);
+                return;
+            }
+
+            if (!task.DeadlineDate.HasValue) return;
+
+            var daysUntilDeadline = (task.DeadlineDate.Value.ToDateTime(TimeOnly.MinValue) - DateTime.Today);
+            if (daysUntilDeadline.TotalDays <= 1 && daysUntilDeadline.TotalDays >= 0)
+            {
+                item.BackColor = Color.FromArgb(220, 53, 69);
+                item.Font = new Font(item.Font, FontStyle.Bold);
+            }
+            else if (daysUntilDeadline.TotalDays < 0)
+            {
+                item.BackColor = Color.FromArgb(150, 150, 150);
+                item.Font = new Font(item.Font, FontStyle.Italic);
+            }
+        }
+
+        // Создание панели с кнопками действий
+        private FlowLayoutPanel CreateButtonPanel()
+        {
+            var panel = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.RightToLeft,
                 Padding = new Padding(0, 10, 0, 0)
             };
+
+            var closeButton = new Button
+            {
+                Text = "Закрыть",
+                Size = new Size(100, 40),
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                DialogResult = DialogResult.Cancel
+            };
+            closeButton.FlatAppearance.BorderSize = 0;
 
             var addButton = new Button
             {
@@ -205,29 +241,12 @@ namespace Organizer
             addButton.FlatAppearance.BorderSize = 0;
             addButton.Click += (s, e) => AddNewTask();
 
-            var closeButton = new Button
-            {
-                Text = "Закрыть",
-                Size = new Size(100, 40),
-                BackColor = Color.FromArgb(108, 117, 125),
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand,
-                DialogResult = DialogResult.Cancel
-            };
-            closeButton.FlatAppearance.BorderSize = 0;
-            closeButton.Click += (s, e) => this.DialogResult = DialogResult.Cancel;
-
-            buttonPanel.Controls.Add(closeButton);
-            buttonPanel.Controls.Add(addButton);
-
-            tableLayout.Controls.Add(tasksListView, 0, 0);
-            tableLayout.Controls.Add(buttonPanel, 0, 1);
-
-            mainPanel.Controls.Add(tableLayout);
+            panel.Controls.Add(closeButton);
+            panel.Controls.Add(addButton);
+            return panel;
         }
 
+        // Получение названия приоритета по его числовому значению
         private string GetPriorityName(int priority)
         {
             return priority switch
@@ -239,6 +258,7 @@ namespace Organizer
             };
         }
 
+        // Редактирование выбранной задачи
         private void EditSelectedTask(ListView listView)
         {
             if (listView.SelectedItems.Count == 0 || listView.SelectedItems[0].Tag == null) return;
@@ -252,14 +272,11 @@ namespace Organizer
             using (var form = new TaskEditForm(_dbContext, task))
             {
                 var result = form.ShowDialog();
-                if (result == DialogResult.OK || result == DialogResult.Abort)
-                {
-                    _dbContext.SaveChanges();
-                    LoadTasks();
-                }
+                if (result != DialogResult.Cancel) LoadTasks();
             }
         }
 
+        // Добавление новой задачи
         private void AddNewTask()
         {
             var newTask = new Models.Task
@@ -276,11 +293,7 @@ namespace Organizer
             {
                 if (form.ShowDialog() == DialogResult.OK)
                 {
-                    try
-                    {
-                        _dbContext.SaveChanges();
-                        LoadTasks();
-                    }
+                    try { _dbContext.SaveChanges(); LoadTasks(); }
                     catch (Exception ex)
                     {
                         MessageBox.Show($"Ошибка при сохранении задачи: {ex.InnerException?.Message ?? ex.Message}",

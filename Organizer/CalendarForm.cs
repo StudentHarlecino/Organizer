@@ -1,9 +1,16 @@
 ﻿using Organizer.Models;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
 
 namespace Organizer
 {
+    // Главная форма приложения - календарь задач с возможностью просмотра, добавления и управления задачами
     public partial class CalendarForm : Form
     {
+        // Сервис для отправки email-уведомлений
+        private EmailService _emailService;
+
+        // Поля для хранения состояния формы
+        private DateTime _lastNotificationCheckDate = DateTime.MinValue;
         private DateTime currentDate;
         private TableLayoutPanel calendarTable;
         private Label monthLabel;
@@ -15,6 +22,8 @@ namespace Organizer
         private EventHandler userNameLabelClickHandler;
         private EventHandler avatarClickHandler;
 
+
+        // Конструктор формы календаря
         public CalendarForm()
         {
             InitializeComponent();
@@ -24,20 +33,38 @@ namespace Organizer
             LoadUserName();
             UpdateCalendar();
             this.Resize += CalendarForm_Resize;
+
+            // Инициализация сервиса отправки email
+            _emailService = new EmailService(
+                "smtp.mail.ru",
+                465,
+                "organizerapt@mail.ru",
+                "2zGQ6ymJ2oQDwPVI8V4W",
+                true
+            );
+
+            CheckDeadlineNotifications();
         }
+
+        // --- Обработчики событий ---
 
         private void CalendarForm_Resize(object sender, EventArgs e)
         {
             UpdateCalendar();
         }
 
+        // --- Методы инициализации ---
+
+        // Инициализация подключения к базе данных
         private void InitializeDatabase()
         {
             dbContext = new TeacherOrganizerContext();
         }
 
+        // Инициализация компонентов календаря
         private void InitializeCalendarComponents()
         {
+            // Настройка основной формы
             this.Text = "Календарь задач";
             this.Size = new Size(900, 650);
             this.MinimumSize = new Size(700, 500);
@@ -45,6 +72,7 @@ namespace Organizer
             this.Font = new Font("Segoe UI", 10);
             this.BackColor = Color.FromArgb(240, 255, 240);
 
+            // Создание главной панели с табличным layout
             var mainPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -56,6 +84,7 @@ namespace Organizer
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
+            // Панель навигации с кнопками переключения месяцев
             var navPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -70,6 +99,7 @@ namespace Organizer
                 BackColor = Color.Transparent
             };
 
+            // Кнопка перехода к предыдущему месяцу
             prevMonthButton = new Button
             {
                 Text = "◄",
@@ -83,6 +113,7 @@ namespace Organizer
             };
             prevMonthButton.Click += (s, e) => { currentDate = currentDate.AddMonths(-1); UpdateCalendar(); };
 
+            // Метка с названием текущего месяца и года
             monthLabel = new Label
             {
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -93,6 +124,7 @@ namespace Organizer
                 Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
 
+            // Кнопка перехода к следующему месяцу
             nextMonthButton = new Button
             {
                 Text = "►",
@@ -111,6 +143,7 @@ namespace Organizer
             navContainer.Controls.Add(nextMonthButton);
             navPanel.Controls.Add(navContainer);
 
+            // Метка с именем пользователя
             userNameLabel = new Label
             {
                 Text = "Петров Алексей",
@@ -126,6 +159,7 @@ namespace Organizer
             navPanel.Controls.Add(userNameLabel);
             userNameLabel.Location = new Point(navPanel.Width - userNameLabel.Width - 20, 15);
 
+            // Панель с днями недели
             var weekdaysPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -146,6 +180,7 @@ namespace Organizer
                 weekdaysPanel.Controls.Add(lblDay, i, 0);
             }
 
+            // Таблица календаря (6 строк х 7 столбцов)
             calendarTable = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -164,6 +199,7 @@ namespace Organizer
                 calendarTable.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66f));
             }
 
+            // Кнопка очистки задач
             var clearTasksButton = new Button
             {
                 Text = "Очистить задачи",
@@ -180,6 +216,7 @@ namespace Organizer
 
             userNameLabel.Location = new Point(navPanel.Width - userNameLabel.Width - 20, 15);
 
+            // Сборка всех компонентов на главной панели
             mainPanel.Controls.Add(navPanel, 0, 0);
             mainPanel.Controls.Add(weekdaysPanel, 0, 1);
             mainPanel.Controls.Add(calendarTable, 0, 2);
@@ -187,6 +224,85 @@ namespace Organizer
             this.Controls.Add(mainPanel);
         }
 
+        // --- Методы работы с пользователем ---
+
+        // Загрузка и отображение имени пользователя и аватара
+        private void LoadUserName()
+        {
+            var user = dbContext.UserProfiles.FirstOrDefault();
+
+            // Очистка предыдущего аватара
+            foreach (Control c in userNameLabel.Parent.Controls.OfType<PictureBox>().ToList())
+            {
+                if (avatarClickHandler != null)
+                {
+                    c.Click -= avatarClickHandler;
+                }
+                userNameLabel.Parent.Controls.Remove(c);
+            }
+
+            if (userNameLabelClickHandler != null)
+            {
+                userNameLabel.Click -= userNameLabelClickHandler;
+            }
+
+            if (user != null)
+            {
+                // Формирование инициалов пользователя
+                string initials = "";
+                if (!string.IsNullOrEmpty(user.FirstName) && user.FirstName.Length > 0)
+                {
+                    initials += user.FirstName[0] + ".";
+                }
+                if (!string.IsNullOrEmpty(user.MiddleName) && user.MiddleName.Length > 0)
+                {
+                    initials += user.MiddleName[0] + ".";
+                }
+
+                userNameLabel.Text = $"{user.LastName} {initials}";
+
+                // Создание аватара пользователя
+                var avatarBox = new PictureBox
+                {
+                    Image = GetUserAvatar(),
+                    Size = new Size(40, 40),
+                    SizeMode = PictureBoxSizeMode.StretchImage,
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    BackColor = Color.White
+                };
+
+                avatarBox.Location = new Point(
+                    userNameLabel.Parent.Width - avatarBox.Width - 20,
+                    (userNameLabel.Parent.Height - avatarBox.Height) / 2);
+
+                userNameLabel.Location = new Point(
+                    avatarBox.Left - userNameLabel.Width - 10,
+                    (userNameLabel.Parent.Height - userNameLabel.Height) / 2);
+
+                // Обработчики кликов по аватару и имени пользователя
+                avatarClickHandler = (s, e) => ShowUserProfileForm(user);
+                userNameLabelClickHandler = (s, e) => ShowUserProfileForm(user);
+
+                avatarBox.Click += avatarClickHandler;
+                userNameLabel.Click += userNameLabelClickHandler;
+
+                userNameLabel.Parent.Controls.Add(avatarBox);
+            }
+            else
+            {
+                userNameLabel.Text = "Регистрация";
+                userNameLabel.Location = new Point(
+                    userNameLabel.Parent.Width - userNameLabel.Width - 20,
+                    (userNameLabel.Parent.Height - userNameLabel.Height) / 2);
+
+                userNameLabelClickHandler = (s, e) => ShowUserProfileForm(null);
+                userNameLabel.Click += userNameLabelClickHandler;
+            }
+        }
+
+        // Получение аватара пользователя (из файла или создание стандартного)
         private Image GetUserAvatar()
         {
             var user = dbContext.UserProfiles.FirstOrDefault();
@@ -207,6 +323,7 @@ namespace Organizer
             return CreateDefaultAvatar(user);
         }
 
+        // Создание стандартного аватара с инициалами пользователя
         private Image CreateDefaultAvatar(UserProfile user)
         {
             var bmp = new Bitmap(40, 40);
@@ -248,77 +365,7 @@ namespace Organizer
             return bmp;
         }
 
-        private void LoadUserName()
-        {
-            var user = dbContext.UserProfiles.FirstOrDefault();
-
-            foreach (Control c in userNameLabel.Parent.Controls.OfType<PictureBox>().ToList())
-            {
-                if (avatarClickHandler != null)
-                {
-                    c.Click -= avatarClickHandler;
-                }
-                userNameLabel.Parent.Controls.Remove(c);
-            }
-
-            if (userNameLabelClickHandler != null)
-            {
-                userNameLabel.Click -= userNameLabelClickHandler;
-            }
-
-            if (user != null)
-            {
-                string initials = "";
-                if (!string.IsNullOrEmpty(user.FirstName) && user.FirstName.Length > 0)
-                {
-                    initials += user.FirstName[0] + ".";
-                }
-                if (!string.IsNullOrEmpty(user.MiddleName) && user.MiddleName.Length > 0)
-                {
-                    initials += user.MiddleName[0] + ".";
-                }
-
-                userNameLabel.Text = $"{user.LastName} {initials}";
-
-                var avatarBox = new PictureBox
-                {
-                    Image = GetUserAvatar(),
-                    Size = new Size(40, 40),
-                    SizeMode = PictureBoxSizeMode.StretchImage,
-                    Cursor = Cursors.Hand,
-                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                    BorderStyle = BorderStyle.FixedSingle,
-                    BackColor = Color.White
-                };
-
-                avatarBox.Location = new Point(
-                    userNameLabel.Parent.Width - avatarBox.Width - 20,
-                    (userNameLabel.Parent.Height - avatarBox.Height) / 2);
-
-                userNameLabel.Location = new Point(
-                    avatarBox.Left - userNameLabel.Width - 10,
-                    (userNameLabel.Parent.Height - userNameLabel.Height) / 2);
-
-                avatarClickHandler = (s, e) => ShowUserProfileForm(user);
-                userNameLabelClickHandler = (s, e) => ShowUserProfileForm(user);
-
-                avatarBox.Click += avatarClickHandler;
-                userNameLabel.Click += userNameLabelClickHandler;
-
-                userNameLabel.Parent.Controls.Add(avatarBox);
-            }
-            else
-            {
-                userNameLabel.Text = "Регистрация";
-                userNameLabel.Location = new Point(
-                    userNameLabel.Parent.Width - userNameLabel.Width - 20,
-                    (userNameLabel.Parent.Height - userNameLabel.Height) / 2);
-
-                userNameLabelClickHandler = (s, e) => ShowUserProfileForm(null);
-                userNameLabel.Click += userNameLabelClickHandler;
-            }
-        }
-
+        // Отображение формы профиля пользователя
         private void ShowUserProfileForm(UserProfile user)
         {
             using (var form = new UserProfileForm(dbContext, user))
@@ -330,12 +377,9 @@ namespace Organizer
             }
         }
 
-        private string GetWeekdayShortName(int index)
-        {
-            string[] days = { "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб" };
-            return days[index];
-        }
+        // --- Методы работы с календарем ---
 
+        // Обновление отображения календаря
         private void UpdateCalendar()
         {
             monthLabel.Text = currentDate.ToString("MMMM yyyy").ToUpper();
@@ -350,6 +394,7 @@ namespace Organizer
 
             int dayOfWeek = ((int)firstDayOfMonth.DayOfWeek + 6) % 7;
 
+            // Добавление пустых ячеек перед первым днем месяца
             for (int i = 0; i < dayOfWeek; i++)
             {
                 var emptyPanel = new Panel
@@ -360,6 +405,7 @@ namespace Organizer
                 calendarTable.Controls.Add(emptyPanel);
             }
 
+            // Добавление дней месяца
             for (int day = 1; day <= daysInMonth; day++)
             {
                 DateTime date = new DateTime(currentDate.Year, currentDate.Month, day);
@@ -374,6 +420,7 @@ namespace Organizer
                 calendarTable.Controls.Add(dayPanel);
             }
 
+            // Добавление пустых ячеек после последнего дня месяца
             int totalCells = 42;
             int filledCells = dayOfWeek + daysInMonth;
             for (int i = filledCells; i < totalCells; i++)
@@ -389,6 +436,7 @@ namespace Organizer
             calendarTable.ResumeLayout();
         }
 
+        // Создание панели для отображения дня в календаре
         private Panel CreateDayPanel(int day, DateTime date)
         {
             var dayPanel = new Panel
@@ -401,6 +449,7 @@ namespace Organizer
                 BorderStyle = BorderStyle.FixedSingle
             };
 
+            // Выделение текущего дня
             if (date.Date == DateTime.Today.Date)
             {
                 dayPanel.BackColor = Color.FromArgb(173, 216, 230);
@@ -417,12 +466,14 @@ namespace Organizer
                 ForeColor = Color.Black
             };
 
+            // Подсчет задач на день
             var startOfDayUtc = date.Date.ToUniversalTime();
             var endOfDayUtc = startOfDayUtc.AddDays(1);
             int tasksCount = dbContext.Tasks.Count(t => t.CreatedAt.HasValue &&
                 t.CreatedAt.Value.ToUniversalTime() >= startOfDayUtc &&
                 t.CreatedAt.Value.ToUniversalTime() < endOfDayUtc);
 
+            // Отображение количества задач
             if (tasksCount > 0)
             {
                 var tasksLabel = new Label
@@ -443,8 +494,10 @@ namespace Organizer
             return dayPanel;
         }
 
+        // Выбор дня в календаре
         private void SelectDay(Panel dayPanel, DateTime date)
         {
+            // Сброс выделения предыдущего дня
             if (selectedDayPanel != null)
             {
                 if (((DateTime)selectedDayPanel.Tag).Date == DateTime.Today.Date)
@@ -459,6 +512,7 @@ namespace Organizer
                 }
             }
 
+            // Выделение выбранного дня
             dayPanel.BackColor = Color.FromArgb(200, 255, 200);
             dayPanel.BorderStyle = BorderStyle.Fixed3D;
             selectedDayPanel = dayPanel;
@@ -466,6 +520,7 @@ namespace Organizer
             ShowTasksForDate(date);
         }
 
+        // Отображение задач для выбранной даты
         private void ShowTasksForDate(DateTime date)
         {
             using (var form = new TasksForm(dbContext, date))
@@ -479,6 +534,118 @@ namespace Organizer
             }
         }
 
+        // --- Методы работы с уведомлениями ---
+
+        // Проверка задач с приближающимся дедлайном и отправка уведомлений
+        private void CheckDeadlineNotifications()
+        {
+            // Проверка не чаще чем раз в 6 часов
+            if ((DateTime.Now - _lastNotificationCheckDate).TotalHours < 6)
+                return;
+
+            _lastNotificationCheckDate = DateTime.Now;
+
+            var user = dbContext.UserProfiles.FirstOrDefault();
+            if (user == null || string.IsNullOrWhiteSpace(user.Email) || !user.ReceiveMailNotifications)
+                return;
+
+            var nowUtc = DateTime.UtcNow;
+            var nowWithoutMsUtc = new DateTime(nowUtc.Year, nowUtc.Month, nowUtc.Day, nowUtc.Hour, nowUtc.Minute, 0, DateTimeKind.Utc);
+            var todayUtc = nowWithoutMsUtc.Date;
+            var deadlineThresholdUtc = nowUtc.AddHours(24);
+
+            // Получение задач с приближающимся дедлайном
+            var tasks = dbContext.Tasks
+                .Where(t => !t.Completed && t.DeadlineDate.HasValue)
+                .AsEnumerable()
+                .Where(t =>
+                {
+                    var deadlineDate = t.DeadlineDate.Value;
+                    var deadlineDateTime = deadlineDate.ToDateTime(TimeOnly.MinValue);
+                    var deadlineUtc = DateTime.SpecifyKind(deadlineDateTime, DateTimeKind.Utc);
+
+                    if (deadlineUtc.Date == todayUtc)
+                    {
+                        return t.LastNotificationSent == null ||
+                               t.LastNotificationSent.Value.Date < todayUtc;
+                    }
+                    else if (deadlineUtc <= deadlineThresholdUtc && deadlineUtc >= nowWithoutMsUtc)
+                    {
+                        return t.LastNotificationSent == null ||
+                               (nowWithoutMsUtc - t.LastNotificationSent.Value).TotalHours >= 6;
+                    }
+                    return false;
+                })
+                .ToList();
+
+            // Отправка уведомления, если есть задачи
+            if (tasks.Any())
+            {
+                string subject = "⏰ Срочные задачи: приближается дедлайн!";
+                string body = $@"Уважаемый пользователь, в вашем органайзере есть {tasks.Count} задач(-а), у которых скоро истекает срок выполнения (сегодня или менее 24 часов):" + Environment.NewLine + Environment.NewLine;
+
+                foreach (var task in tasks)
+                {
+                    var deadlineDate = task.DeadlineDate.Value;
+                    var deadlineDateTime = deadlineDate.ToDateTime(TimeOnly.MinValue);
+                    var deadlineUtc = DateTime.SpecifyKind(deadlineDateTime, DateTimeKind.Utc);
+                    var timeLeft = deadlineUtc - nowWithoutMsUtc;
+                    var hoursLeft = (int)timeLeft.TotalHours;
+                    var minutesLeft = timeLeft.Minutes;
+
+                    string urgencyLevel = task.Priority switch
+                    {
+                        3 => "❗❗❗ ВЫСОКИЙ приоритет",
+                        2 => "❗❗ Средний приоритет",
+                        1 => "❗ Низкий приоритет",
+                        _ => "Приоритет не указан"
+                    };
+
+                    string timeLeftText = deadlineUtc.Date == todayUtc ?
+                        "Срок выполнения: СЕГОДНЯ" :
+                        $"- Осталось времени: {hoursLeft} ч. {minutesLeft} мин.";
+
+                    body += $@"• {task.Title}" + Environment.NewLine +
+                           $"\t- {urgencyLevel}" + Environment.NewLine +
+                           $"\t- Срок выполнения: {deadlineDate:dd.MM.yyyy}" + Environment.NewLine +
+                           $"\t{timeLeftText}" +
+                           Environment.NewLine + Environment.NewLine;
+                }
+
+                body += @"Рекомендуем завершить эти задачи как можно скорее!" + Environment.NewLine + Environment.NewLine +
+                        "С уважением," + Environment.NewLine +
+                        "Ваш Органайзер задач";
+
+                try
+                {
+                    _emailService.SendEmail(user.Email, subject, body);
+
+                    // Обновление времени последнего уведомления
+                    foreach (var task in tasks)
+                    {
+                        task.LastNotificationSent = nowWithoutMsUtc;
+                    }
+                    dbContext.SaveChanges();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ошибка при отправке уведомления: {ex.Message}");
+                }
+            }
+        }
+
+        // --- Вспомогательные методы ---
+
+        // Получение сокращенного названия дня недели
+        private string GetWeekdayShortName(int index)
+        {
+            string[] days = { "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб" };
+            return days[index];
+        }
+
+        // --- Методы работы с задачами ---
+
+        // Обработчик клика по кнопке очистки задач
         private void ClearTasksButton_Click(object sender, EventArgs e)
         {
             var menu = new ContextMenuStrip();
@@ -509,8 +676,10 @@ namespace Organizer
             menu.Show(button, new Point(0, button.Height));
         }
 
+        // Перечисление для выбора периода очистки задач
         private enum Period { Today, Week, Month, Year }
 
+        // Очистка задач за указанный период
         private void ClearTasksForPeriod(Period period)
         {
             DateTime startDate;
@@ -574,6 +743,7 @@ namespace Organizer
             }
         }
 
+        // Получение описания периода для отображения в сообщениях
         private string GetPeriodDescription(Period period, DateTime startDate, DateTime endDate)
         {
             switch (period)
@@ -591,6 +761,7 @@ namespace Organizer
             }
         }
 
+        // Очистка задач за пользовательский период
         private void ClearCustomPeriod(DateTime startDate, DateTime endDate, Form parentForm = null)
         {
             var startDateUtc = startDate.Date.ToUniversalTime();
@@ -638,6 +809,7 @@ namespace Organizer
             }
         }
 
+        // Отображение диалога выбора пользовательского периода для очистки задач
         private void ShowCustomPeriodDialog()
         {
             using (var form = new Form())

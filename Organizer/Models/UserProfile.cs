@@ -16,4 +16,6 @@ public partial class UserProfile
     public string? Email { get; set; }
 
     public string? AvatarPath { get; set; }
+
+    public bool ReceiveMailNotifications { get; set; } = true;
 }

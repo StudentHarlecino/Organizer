@@ -15,11 +15,7 @@ public partial class Task
 
     public bool Completed { get; set; }
 
-    public DateTime? CompletedAt { get; set; }
-
     public DateTime? CreatedAt { get; set; }
-
-    public DateTime? UpdatedAt { get; set; }
 
     public int? CategoryId { get; set; }
 
@@ -28,4 +24,6 @@ public partial class Task
     public virtual TaskCategory? Category { get; set; }
 
     public virtual ICollection<File> Files { get; set; } = new List<File>();
+
+    public DateTime? LastNotificationSent { get; set; }
 }

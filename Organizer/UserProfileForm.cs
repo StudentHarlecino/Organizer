@@ -2,6 +2,7 @@
 
 namespace Organizer
 {
+    // Форма редактирования профиля пользователя с возможностью загрузки аватара
     public partial class UserProfileForm : Form
     {
         private readonly TeacherOrganizerContext _dbContext;
@@ -9,6 +10,7 @@ namespace Organizer
         private PictureBox avatarPictureBox;
         private string _avatarPath;
 
+        // Инициализация формы с передачей контекста БД и профиля пользователя
         public UserProfileForm(TeacherOrganizerContext dbContext, UserProfile userProfile = null)
         {
             InitializeComponent();
@@ -18,14 +20,17 @@ namespace Organizer
             InitializeComponents();
         }
 
+        // Инициализация компонентов формы
         private void InitializeComponents()
         {
+            // Настройка основных параметров формы
             this.Text = "Редактирование профиля";
-            this.Size = new Size(400, 420);
+            this.Size = new Size(400, 460);
             this.StartPosition = FormStartPosition.CenterParent;
             this.Font = new Font("Segoe UI", 10);
             this.BackColor = Color.FromArgb(240, 255, 240);
 
+            // Создание основной табличной панели
             var mainPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -34,6 +39,7 @@ namespace Organizer
                 RowCount = 7
             };
 
+            // Настройка столбцов и строк
             mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
@@ -41,11 +47,11 @@ namespace Organizer
             {
                 mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             }
-
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
 
+            // Создание элементов управления для данных пользователя
             var lblLastName = new Label { Text = "Фамилия:", TextAlign = ContentAlignment.MiddleRight };
             var txtLastName = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(5) };
 
@@ -58,6 +64,7 @@ namespace Organizer
             var lblEmail = new Label { Text = "Email:", TextAlign = ContentAlignment.MiddleRight };
             var txtEmail = new TextBox { Dock = DockStyle.Fill, Margin = new Padding(5) };
 
+            // Добавление элементов в основную панель
             mainPanel.Controls.Add(lblLastName, 0, 0);
             mainPanel.Controls.Add(txtLastName, 1, 0);
             mainPanel.Controls.Add(lblFirstName, 0, 1);
@@ -67,6 +74,7 @@ namespace Organizer
             mainPanel.Controls.Add(lblEmail, 0, 3);
             mainPanel.Controls.Add(txtEmail, 1, 3);
 
+            // Создание компонентов для работы с аватаром
             var lblAvatar = new Label { Text = "Аватар:", TextAlign = ContentAlignment.MiddleRight };
             avatarPictureBox = new PictureBox
             {
@@ -85,8 +93,7 @@ namespace Organizer
                 Margin = new Padding(5, 5, 5, 2),
                 BackColor = Color.FromArgb(70, 130, 180),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Padding = new Padding(0, 0, 0, 0)
+                FlatStyle = FlatStyle.Flat
             };
 
             var btnRemoveAvatar = new Button
@@ -97,19 +104,15 @@ namespace Organizer
                 Margin = new Padding(5, 2, 5, 5),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Padding = new Padding(0, 0, 0, 0)
+                FlatStyle = FlatStyle.Flat
             };
 
-            if (!string.IsNullOrEmpty(_avatarPath) && System.IO.File.Exists(_avatarPath))
-            {
-                avatarPictureBox.Image = Image.FromFile(_avatarPath);
-            }
-            else
-            {
-                avatarPictureBox.Image = CreateDefaultAvatar(_userProfile);
-            }
+            // Загрузка текущего аватара или создание стандартного
+            avatarPictureBox.Image = !string.IsNullOrEmpty(_avatarPath) && System.IO.File.Exists(_avatarPath)
+                ? Image.FromFile(_avatarPath)
+                : CreateDefaultAvatar(_userProfile);
 
+            // Панель для аватара и кнопок управления
             var avatarPanel = new Panel { Dock = DockStyle.Fill };
             avatarPanel.Controls.Add(avatarPictureBox);
 
@@ -118,19 +121,32 @@ namespace Organizer
             buttonsPanel.Controls.Add(btnRemoveAvatar);
 
             avatarPanel.Controls.Add(buttonsPanel);
-
             mainPanel.Controls.Add(lblAvatar, 0, 4);
             mainPanel.Controls.Add(avatarPanel, 1, 4);
 
+            // Чекбокс для уведомлений
+            var chkNotifications = new CheckBox
+            {
+                Text = "Получать уведомления о дедлайнах",
+                Checked = _userProfile?.ReceiveMailNotifications ?? true,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(5, 10, 5, 5),
+                AutoSize = true
+            };
+
+            var notificationPanel = new Panel { Dock = DockStyle.Fill, Height = 40 };
+            notificationPanel.Controls.Add(chkNotifications);
+            mainPanel.Controls.Add(notificationPanel, 0, 5);
+            mainPanel.SetColumnSpan(notificationPanel, 2);
+
+            // Кнопки сохранения и отмены
             var btnSave = new Button
             {
                 Text = "Сохранить",
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(50, 205, 50),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Margin = new Padding(2),
-                Padding = new Padding(0)
+                FlatStyle = FlatStyle.Flat
             };
 
             var btnCancel = new Button
@@ -139,9 +155,7 @@ namespace Organizer
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Margin = new Padding(2),
-                Padding = new Padding(0)
+                FlatStyle = FlatStyle.Flat
             };
 
             var buttonPanel = new TableLayoutPanel
@@ -159,6 +173,7 @@ namespace Organizer
             mainPanel.Controls.Add(buttonPanel, 0, 6);
             mainPanel.SetColumnSpan(buttonPanel, 2);
 
+            // Заполнение данных пользователя, если они есть
             if (_userProfile != null)
             {
                 txtLastName.Text = _userProfile.LastName;
@@ -167,6 +182,7 @@ namespace Organizer
                 txtEmail.Text = _userProfile.Email ?? "";
             }
 
+            // Подписка на события
             btnChangeAvatar.Click += (s, e) => ChangeAvatar();
             btnRemoveAvatar.Click += (s, e) => RemoveAvatar();
 
@@ -184,15 +200,12 @@ namespace Organizer
                 user.MiddleName = string.IsNullOrWhiteSpace(txtMiddleName.Text) ? null : txtMiddleName.Text;
                 user.Email = string.IsNullOrWhiteSpace(txtEmail.Text) ? null : txtEmail.Text;
                 user.AvatarPath = _avatarPath;
+                user.ReceiveMailNotifications = chkNotifications.Checked;
 
                 if (_userProfile == null)
-                {
                     _dbContext.UserProfiles.Add(user);
-                }
                 else
-                {
                     _dbContext.UserProfiles.Update(user);
-                }
 
                 _dbContext.SaveChanges();
                 this.DialogResult = DialogResult.OK;
@@ -208,6 +221,7 @@ namespace Organizer
             this.Controls.Add(mainPanel);
         }
 
+        // Метод для изменения аватара
         private void ChangeAvatar()
         {
             using (var openFileDialog = new OpenFileDialog())
@@ -237,12 +251,14 @@ namespace Organizer
             }
         }
 
+        // Метод для удаления аватара
         private void RemoveAvatar()
         {
             _avatarPath = null;
             avatarPictureBox.Image = CreateDefaultAvatar(_userProfile);
         }
 
+        // Создание стандартного аватара с инициалами пользователя
         private Image CreateDefaultAvatar(UserProfile user)
         {
             var bmp = new Bitmap(100, 100);
